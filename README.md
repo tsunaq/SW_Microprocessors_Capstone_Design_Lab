@@ -43,3 +43,36 @@
 4) 각각의 모드와 작동
 - 모드는 가장 기본이 되는 시간표현(시간:분), 초만 표시하는 모드, 시각설정모드가 있다.
 시간:분(00:00)을 표시하던 상태에서 초(XX:00)만 표시하는 상태로 다시 현재시각 설정모드로 이동할 수 있다. 각각의 모드들은 SW A의 동작으로 MENU_FLAG를 변화시켜 접근 가능하며 시간설정 모드에서는 SW B를 이용해 DIGIT을 변경하고, SW C를 이용해 각 DIGIT의 인수들을 증가시킬 수 있다.
+
+## 3. 기능 및 동작과정
+인터럽트 및 MENU_FLAG를 이용한 분기
+
+```assembly
+   ORG   0004H
+
+   MOVWF   W_TEMP
+   
+   SWAPF   STATUS,W
+   MOVWF   STATUS_TEMP
+   MOVLW   B'00000000'
+   CALL   DISP
+   CALL   BTN_CHK
+   SWAPF   STATUS_TEMP,W
+   MOVWF   STATUS
+   SWAPF   W_TEMP,F
+   SWAPF   W_TEMP,W
+   BCF   INTCON,2
+   
+   RETFIE
+   
+   CHK_FLAG
+   BTFSC   MENU_FLAG,0
+   GOTO   CLK_MODE      ;CLK MODE OR SETTING
+   
+   CLK_MODE
+   
+   BTFSC   MENU_FLAG,7
+   GOTO   CLK_MODE_SECOND
+   BTFSC   MENU_FLAG,4
+   GOTO   SETTING_MODE_1
+```
