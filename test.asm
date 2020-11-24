@@ -1,0 +1,567 @@
+; STANDARD HEADER FILE
+   PROCESSOR   16F876
+   
+; BANK 0
+PCL       EQU   02H
+STATUS   EQU   03H
+PORTA   EQU   05H
+PORTB   EQU   06H
+PORTC   EQU   07H
+INTCON   EQU   0BH
+
+; BANK 1
+TRISA   EQU   85H
+TRISB   EQU   86H
+TRISC   EQU   87H
+ADCON1   EQU   9FH
+OPTIONR   EQU   81H
+
+; STATUS BITS 선언
+IRP      EQU   7
+RP1      EQU   6
+RP0      EQU   5
+ZF      EQU   2
+CF      EQU   0
+
+;
+INT_CNT   EQU   20H
+D_10SEC   EQU   21H
+D_1SEC   EQU   22H
+KEY_IN   EQU   23H
+W_TEMP   EQU   24H
+STATUS_TEMP   EQU   25H
+FLAG      EQU   27H
+D_10MIN   EQU   28H
+D_1MIN   EQU   29H
+D_10HOUR   EQU   2AH
+D_1HOUR   EQU   2BH
+DBUF1      EQU   2CH   
+DBUF2      EQU   2DH
+
+
+BTNVALID   EQU   34H
+BTNDEL   EQU   35H
+MENU_FLAG   EQU   36H
+MENU_FLAG_TEMP   EQU   37H
+TEMP1      EQU   38H
+TEMP2      EQU   39H
+
+DISP_BUF_1   EQU   40H
+DISP_BUF_2   EQU   41H
+DISP_BUF_3   EQU   42H
+DISP_BUF_4   EQU   43H
+
+CLK_SET_FLAG   EQU   50H
+SET_FLAG      EQU   51H
+BLINK_CNT      EQU   52H
+SET_BLINK      EQU   53H
+
+;
+W      EQU   B'0'
+F      EQU   .1
+
+;
+DISP_CNT   EQU   .1
+
+
+
+; MAIN PROGRAM
+   ORG   0000H
+   GOTO   START_UP
+
+   ORG   0004H
+
+   MOVWF   W_TEMP
+   
+   SWAPF   STATUS,W
+   MOVWF   STATUS_TEMP
+   MOVLW   B'00000000'
+   CALL   DISP
+   CALL   BTN_CHK
+   SWAPF   STATUS_TEMP,W
+   MOVWF   STATUS
+   SWAPF   W_TEMP,F
+   SWAPF   W_TEMP,W
+   BCF   INTCON,2
+   
+   RETFIE
+   
+DISP
+   BTFSS   FLAG,0
+   GOTO   SUB1
+   GOTO   SUB2
+   
+SUB1
+   BTFSS   FLAG,1
+   GOTO   DISP1
+   GOTO   DISP3
+
+SUB2
+   BTFSS   FLAG,1
+   GOTO   DISP2
+   GOTO   DISP4
+            
+DISP1
+   ;BTFSC   CLK_SET_FLAG,2
+   ;CALL   BLINK
+
+   MOVF   DISP_BUF_2,W
+   CALL   CONV
+   BSF   PORTA,0
+   BSF   PORTA,2
+   BSF   PORTA,3
+   MOVWF   PORTC
+   BCF   PORTA,1   
+   BSF   FLAG,0
+   BCF   FLAG,1
+   
+   RETURN
+
+
+DISP2
+   MOVF   DISP_BUF_1,W
+   CALL   CONV
+   BSF   PORTA,1
+   BSF   PORTA,2
+   BSF   PORTA,3
+   MOVWF   PORTC
+   BCF   PORTA,0
+   BCF   FLAG,0
+   BSF   FLAG,1
+   INCF   INT_CNT
+   RETURN
+   
+DISP3
+   MOVF   DISP_BUF_4,W
+   CALL   CONV
+   BSF   PORTA,0
+   BSF   PORTA,1
+   BSF   PORTA,2
+   MOVWF   PORTC
+   BCF   PORTA,3
+   BSF   FLAG,0
+   BSF   FLAG,1
+   RETURN
+
+DISP4
+   MOVF   DISP_BUF_3,W
+   CALL   CONV
+   BSF   PORTA,0
+   BSF   PORTA,1
+   BSF   PORTA,3
+   MOVWF   PORTC
+   
+   BTFSS   MENU_FLAG,4
+   CALL   BLINK
+
+   
+   BCF   PORTA,2
+   BCF   FLAG,0
+   BCF   FLAG,1
+   RETURN
+   
+CONV
+   ANDLW   0FH
+   ADDWF   PCL,F
+   
+   RETLW   B'11111100' ;0
+   RETLW   B'01100000' ;1
+   RETLW   B'11011010' ;2
+   RETLW   B'11110010' ;3
+   RETLW   B'01100110' ;4
+   RETLW   B'10110110' ;5
+   RETLW   B'10111110' ;6
+   RETLW   B'11100000' ;7
+   RETLW   B'11111110' ;8
+   RETLW   B'11110110' ;9   
+   
+BLINK
+   MOVLW   .0
+   SUBWF   INT_CNT,W
+   BTFSC   STATUS,ZF
+   CALL   DOT
+   
+   MOVLW   .61
+   SUBWF   INT_CNT,W
+   BTFSC   STATUS,ZF
+   CALL   DOT
+   
+   RETURN
+   
+DOT
+   MOVLW   B'00000001'
+   IORWF   PORTC
+   RETURN
+   
+      
+BTN_CHK
+      MOVF   PORTB,W
+      ANDLW   B'00111000'
+      SUBLW   B'00111000'
+   BTFSC   STATUS,ZF
+      RETURN      
+      MOVLW   .50
+      SUBWF   BTNDEL,W
+      BTFSS   STATUS,ZF
+      GOTO   SW_VALID
+      CLRF   BTNVALID
+      MOVF   PORTB,W
+      ANDLW   B'00111000'
+      MOVWF   BTNVALID
+      GOTO   SW_VALID
+   
+SW_VALID
+      DECFSZ   BTNDEL,F
+      RETURN
+
+      MOVLW   .100
+      MOVWF   BTNDEL
+
+     MOVF   PORTB,W
+      ANDLW   B'00111000'
+      SUBWF   BTNVALID,W
+      BTFSS   STATUS,ZF
+      RETURN
+   
+      MOVF   BTNVALID,W
+      SUBLW   B'00110000'   ;A
+      BTFSC   STATUS,ZF
+      GOTO   SW_A
+
+      MOVF   BTNVALID,W
+      SUBLW   B'00101000'   ;B
+      BTFSC   STATUS,ZF
+      GOTO   SW_B
+
+      MOVF   BTNVALID,W
+      SUBLW   B'00011000'   ;C
+      BTFSC   STATUS,ZF
+      GOTO   SW_C
+
+;      MOVF   BTNVALID,W
+;      SUBLW   B'00001000'   ;B+C
+;      BTFSC   STATUS,ZF
+;      GOTO   SW_BC
+;      RETURN
+
+
+
+SW_A
+   BTFSC   MENU_FLAG,0
+   CALL   SW_A_SUB1
+   
+   
+   CALL   SELECT_MODE
+   RETURN
+
+SW_A_SUB1
+   ;GOTO   SW_A_SUB1_SUB
+   MOVLW   .1
+   BTFSC   MENU_FLAG,7
+   MOVLW   .2
+   BTFSC   MENU_FLAG,4
+   MOVLW   .0
+      
+   RETURN
+      
+   
+SW_B
+   BTFSC   MENU_FLAG,0
+   CALL   SW_B_SUB1
+      
+   CALL   SELECT_MODE
+   RETURN
+
+SW_B_SUB1
+   BTFSC   MENU_FLAG,4
+   MOVLW   .3
+   RETURN
+   
+SW_C
+   BTFSC   MENU_FLAG,0
+   CALL   SW_C_SUB1
+   
+   CALL   SELECT_MODE
+   RETURN
+   
+SW_C_SUB1
+   BTFSC   MENU_FLAG,4
+   MOVLW   .4
+   RETURN
+         
+   
+START_UP
+                                                                                                                               BSF      STATUS,RP0
+   MOVLW   B'00000000'
+   MOVWF   TRISA
+   MOVLW   B'00111000'
+   MOVWF   TRISB   
+   MOVLW   B'00000000'
+   MOVWF   TRISC
+   MOVLW   B'00000111'
+   MOVWF   ADCON1
+   
+   MOVLW   B'00000010'
+   MOVWF   OPTIONR
+   BCF   STATUS,RP0
+   
+   BSF   INTCON,5
+   BSF   INTCON,7
+   GOTO   MAIN_ST
+
+MAIN_ST
+   MOVLW   B'00000000'
+   MOVWF   INT_CNT
+   MOVWF   D_10HOUR
+   MOVWF   D_1HOUR
+   MOVWF   D_10MIN
+   MOVWF   D_1MIN
+   MOVWF   D_10SEC
+   MOVWF   D_1SEC
+   MOVWF   DISP_BUF_1
+   MOVWF   DISP_BUF_2
+   MOVWF   DISP_BUF_3
+   MOVWF   DISP_BUF_4
+   MOVWF   KEY_IN
+   MOVWF   FLAG
+   MOVWF   PORTA
+   MOVWF   PORTC
+   MOVWF   BTNVALID
+   MOVWF   TEMP1
+   MOVWF   TEMP2
+   MOVLW   B'00000001'
+   MOVWF   MENU_FLAG
+   MOVWF   CLK_SET_FLAG
+   
+M_LOOP
+   MOVLW   .122
+   SUBWF   INT_CNT,W
+   BTFSS   STATUS,ZF
+   GOTO   CHK_FLAG
+   
+CK_LOOP
+   CLRF   INT_CNT
+   INCF   D_1SEC
+   MOVLW   .10
+   SUBWF   D_1SEC,W
+   BTFSS   STATUS,ZF
+   GOTO   M_LOOP
+   
+T_10S
+   CLRF   D_1SEC
+   INCF   D_10SEC
+   MOVLW   .6
+   SUBWF   D_10SEC,W
+   BTFSS   STATUS,ZF
+   GOTO   M_LOOP
+
+T_1M   
+   CLRF   D_10SEC
+   INCF   D_1MIN
+   MOVLW   .10
+   SUBWF   D_1MIN,W
+   BTFSS   STATUS,ZF
+   GOTO   M_LOOP
+   
+T_10M
+   CLRF   D_1MIN
+   INCF   D_10MIN
+   MOVLW   .6
+   SUBWF   D_10MIN,W
+   BTFSS   STATUS,ZF
+   GOTO    M_LOOP
+
+T_1H   
+   CLRF   D_10MIN
+   INCF   D_1HOUR,F
+   BSF   PORTA,5
+   CALL   DELAY
+   BCF   PORTA,5
+   BCF   STATUS,ZF
+   MOVLW   .10
+   SUBWF   D_1HOUR,W
+   BTFSC   STATUS,ZF
+   GOTO   T_10H
+   MOVLW   .2
+   SUBWF   D_10HOUR,W
+   BTFSS   STATUS,ZF
+   GOTO   M_LOOP
+   MOVLW   .4
+   SUBWF   D_1HOUR,W
+   BTFSS   STATUS,ZF
+   GOTO   M_LOOP
+   
+T_10H
+   CLRF   D_1HOUR
+   INCF   D_10HOUR,F
+   MOVLW   .3
+   SUBWF   D_10HOUR,W
+   BTFSC   STATUS,ZF
+   CLRF   D_10HOUR
+   GOTO   M_LOOP
+
+
+SELECT_MODE
+      CALL   SELECT_DETAIL
+      ANDLW   B'11111111'
+      MOVWF   MENU_FLAG
+      RETURN
+      
+SELECT_DETAIL
+      ANDLW   0FH         
+      ADDWF   PCL,F   
+      RETLW   B'00000001'   ;0
+      RETLW   B'10000001'   ;1 초모드
+      RETLW   B'00010001'   ;2 시간설정
+      RETLW   B'00110001'   ;3 자리변경
+      RETLW   B'01010001'   ;4 인수증가
+
+CHK_FLAG
+   BTFSC   MENU_FLAG,0
+   GOTO   CLK_MODE      ;CLK MODE OR SETTING
+      
+CLK_MODE
+   
+   BTFSC   MENU_FLAG,7
+   GOTO   CLK_MODE_SECOND
+   BTFSC   MENU_FLAG,4
+   GOTO   SETTING_MODE_1
+   
+   CLRF   SET_FLAG
+
+   MOVF   D_1MIN,W
+      MOVWF   DISP_BUF_1
+
+      MOVF   D_10MIN,W
+      MOVWF   DISP_BUF_2
+
+      MOVF   D_1HOUR,W
+     MOVWF   DISP_BUF_3
+
+      MOVF   D_10HOUR,W
+      MOVWF   DISP_BUF_4
+
+   GOTO   M_LOOP
+      
+   
+CLK_MODE_SECOND
+   BTFSC   MENU_FLAG,4
+   GOTO   SETTING_MODE_1
+
+   MOVLW   B'00000000'
+   MOVWF   DISP_BUF_3
+   MOVWF   DISP_BUF_4
+   
+   MOVF   D_1SEC,W
+   MOVWF   DISP_BUF_1
+   
+   MOVF   D_10SEC,W
+   MOVWF   DISP_BUF_2
+   
+   GOTO   M_LOOP
+   
+SETTING_MODE_1
+   BTFSC   SET_FLAG,0
+   GOTO   SETTIME_1
+   BSF   SET_FLAG,0
+      GOTO   SETTIME_1
+   
+
+SETTIME_1
+
+   BTFSC   MENU_FLAG,7
+   GOTO   CLK_MODE
+   
+   MOVF   D_1MIN,W
+   MOVWF   DISP_BUF_1
+
+   MOVF   D_10MIN,W
+   MOVWF   DISP_BUF_2
+
+   MOVF   D_1HOUR,W
+   MOVWF   DISP_BUF_3
+
+   MOVF   D_10HOUR,W
+   MOVWF   DISP_BUF_4
+   
+   
+   BTFSC   MENU_FLAG,5   ;select dgit
+   CALL   SETTING_SELECT
+
+   BTFSC   MENU_FLAG,6   ;inc dgit
+   GOTO   INC_DIGIT
+   
+   GOTO   M_LOOP
+   
+SETTING_SELECT   ;변경
+   MOVLW   .33
+   MOVWF   TEMP1
+   BCF   MENU_FLAG,5
+   RLF   CLK_SET_FLAG,F
+   BTFSS   CLK_SET_FLAG,4
+   RETURN
+   MOVLW   .1
+   MOVWF   CLK_SET_FLAG
+   RETURN
+
+INC_DIGIT ; 0~9, 0~5, 0~2
+   MOVLW   .44
+   MOVWF   TEMP2
+   BCF   MENU_FLAG,6
+   BTFSC   CLK_SET_FLAG,0;1분
+   GOTO   INC_10
+   BTFSC   CLK_SET_FLAG,1;10분
+   GOTO   INC_6
+   BTFSC   CLK_SET_FLAG,2;1시
+   GOTO   INC_10_2
+   BTFSC   CLK_SET_FLAG,3;10시
+   GOTO   INC_3
+   GOTO   M_LOOP
+INC_10 ;0~9
+   INCF   D_1MIN,F
+   MOVF   D_1MIN,W
+   SUBLW   .10
+   BTFSS   STATUS,ZF
+   GOTO   M_LOOP
+   CLRF   D_1MIN
+   GOTO   M_LOOP
+INC_6 ;0~5
+   INCF   D_10MIN,F
+   MOVF   D_10MIN,W
+   SUBLW   .6
+   BTFSS   STATUS,ZF
+   GOTO   M_LOOP
+   CLRF   D_10MIN
+   GOTO   M_LOOP
+INC_10_2 ;0~9
+   INCF   D_1HOUR,F
+   MOVF   D_1HOUR,W
+   SUBLW   .10
+   BTFSS   STATUS,ZF
+   GOTO   M_LOOP
+   CLRF   D_1HOUR
+   GOTO   M_LOOP
+INC_3 ;0~2
+   INCF   D_10HOUR,F
+   MOVF   D_10HOUR,W
+   SUBLW   .3
+   BTFSS   STATUS,ZF
+   GOTO   M_LOOP
+   CLRF   D_10HOUR
+   GOTO   M_LOOP
+   
+DELAY
+   MOVLW   .200
+   MOVWF   DBUF1
+LP1   MOVLW   .250
+   MOVWF   DBUF2
+LP2   NOP
+   DECFSZ   DBUF2,F
+   GOTO   LP2
+   DECFSZ   DBUF1,F
+   GOTO   LP1
+   RETURN
+   
+   
+   
+   END
