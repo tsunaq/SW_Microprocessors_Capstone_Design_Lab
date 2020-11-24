@@ -7,6 +7,9 @@
 ## 2. 시스템 동작 내용(HW/SW)
 ### 2-1. HW 구성 및 동작
 
+![1](https://user-images.githubusercontent.com/58457978/100061682-c5d22d80-2e71-11eb-9c17-b98691cb2e93.png)
+그림 1 전체 회로 구성 (전면, 후면)
+
 |SW A|SW B|SW C|
 |---|---|---|
 |RB 3|RB 4|RB 5|  
